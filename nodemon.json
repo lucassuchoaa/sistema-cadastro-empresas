@@ -1,0 +1,42 @@
+{
+  "watch": [
+    "server.js",
+    "routes/",
+    "middleware/",
+    "utils/",
+    "config/",
+    "views/",
+    "public/"
+  ],
+  "ext": "js,json,ejs,css",
+  "ignore": [
+    "node_modules/",
+    "coverage/",
+    "dist/",
+    "build/",
+    "uploads/",
+    "tests/",
+    "*.test.js",
+    "*.spec.js",
+    "public/vendor/",
+    "planilhas/"
+  ],
+  "env": {
+    "NODE_ENV": "development",
+    "DEBUG": "app:*"
+  },
+  "delay": 1000,
+  "verbose": true,
+  "restartable": "rs",
+  "colours": true,
+  "legacyWatch": false,
+  "pollingInterval": 100,
+  "runOnChangeOnly": false,
+  "signal": "SIGTERM",
+  "stdout": true,
+  "events": {
+    "restart": "echo \"🔄 Servidor reiniciado devido a mudanças nos arquivos\"",
+    "crash": "echo \"💥 Servidor crashou - aguardando mudanças...\"",
+    "start": "echo \"🚀 Servidor iniciado em modo de desenvolvimento\""
+  }
+}
