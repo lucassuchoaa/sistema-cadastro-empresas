@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - <%= empresa.nome %></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+        :root {
+            --empresa-color: <%= empresa.cor %>;
+        }
+        .stats-card {
+            border-left: 4px solid var(--empresa-color);
+        }
+        .btn-empresa {
+            background-color: var(--empresa-color);
+            border-color: var(--empresa-color);
+            color: white;
+        }
+        .btn-empresa:hover {
+            background-color: var(--empresa-color);
+            border-color: var(--empresa-color);
+            opacity: 0.9;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-building me-2"></i>
+                <%= empresa.nome %>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/empresa/<%= empresaId %>" target="_blank">
+                    <i class="fas fa-external-link-alt me-1"></i>
+                    Ver Landing Page
+                </a>
+                <a class="nav-link" href="/admin/logout">
+                    <i class="fas fa-sign-out-alt me-1"></i>
+                    Sair
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <h2>Dashboard Administrativo</h2>
+                <p class="text-muted">Gerencie os colaboradores cadastrados da sua empresa</p>
+            </div>
+        </div>
+        
+        <!-- Estatísticas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Total de Colaboradores</h6>
+                                <h3 class="mb-0"><%= colaboradores.length %></h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-users fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Cadastros Hoje</h6>
+                                <h3 class="mb-0">
+                                    <%= colaboradores.filter(c => c.dataRegistro === new Date().toLocaleDateString('pt-BR')).length %>
+                                </h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-day fa-2x text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                                <div class="card stats-card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h6 class="card-title text-muted">Tipos de Contrato</h6>
+                                                <h3 class="mb-0">
+                                                    <%= [...new Set(colaboradores.map(c => c.tipoContrato))].length %>
+                                                </h3>
+                                            </div>
+                                            <div class="align-self-center">
+                                                <i class="fas fa-file-contract fa-2x text-warning"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">Empresa Criada</h6>
+                                <small class="text-muted"><%= empresa.dataCriacao %></small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-plus fa-2x text-info"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ações -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Ações Rápidas</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="/download/<%= empresaId %>" class="btn btn-empresa">
+                                <i class="fas fa-download me-1"></i>
+                                Baixar Planilha
+                            </a>
+                            <a href="/empresa/<%= empresaId %>" target="_blank" class="btn btn-outline-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>
+                                Abrir Formulário
+                            </a>
+                            <button class="btn btn-outline-success" onclick="copiarLink()">
+                                <i class="fas fa-copy me-1"></i>
+                                Copiar Link
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lista de Colaboradores -->
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Colaboradores Cadastrados</h5>
+                            <div>
+                                <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Buscar colaborador..." style="width: 200px;">
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label for="dataInicio" class="form-label small">Data Início:</label>
+                                <input type="date" class="form-control form-control-sm" id="dataInicio">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="dataFim" class="form-label small">Data Fim:</label>
+                                <input type="date" class="form-control form-control-sm" id="dataFim">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button class="btn btn-outline-primary btn-sm me-2" onclick="filtrarPorData()">
+                                    <i class="fas fa-filter me-1"></i>Filtrar
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">
+                                    <i class="fas fa-times me-1"></i>Limpar
+                                </button>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end justify-content-end">
+                                <small class="text-muted" id="resultadoFiltro">Mostrando <%= colaboradores.length %> cadastros</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <% if (colaboradores.length > 0) { %>
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="colaboradoresTable">
+                                    <thead>
+                                        <tr>
+                                            <th>CPF</th>
+                                            <th>Nome</th>
+                                            <th>Matrícula</th>
+                                            <th>RG</th>
+                                            <th>Data Admissão</th>
+                                            <th>Tipo Contrato</th>
+                                            <th>Data Cadastro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% colaboradores.forEach(function(colaborador) { %>
+                                            <tr>
+                                                <td><%= colaborador.cpf %></td>
+                                                <td><%= colaborador.nome %></td>
+                                                <td><%= colaborador.matricula %></td>
+                                                <td><%= colaborador.rg %></td>
+                                                <td><%= colaborador.dataAdmissao %></td>
+                                                <td>
+                                                    <span class="badge bg-secondary"><%= colaborador.tipoContrato %></span>
+                                                </td>
+                                                <td><%= colaborador.dataRegistro %></td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="text-center py-5">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Nenhum colaborador cadastrado</h5>
+                                <p class="text-muted">Compartilhe o link do formulário para começar a receber cadastros.</p>
+                                <a href="/empresa/<%= empresaId %>" target="_blank" class="btn btn-empresa">
+                                    Abrir Formulário de Cadastro
+                                </a>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Função para copiar link
+        function copiarLink() {
+            const link = window.location.origin + '/empresa/<%= empresaId %>';
+            navigator.clipboard.writeText(link).then(function() {
+                alert('Link copiado para a área de transferência!');
+            });
+        }
+        
+        // Busca na tabela
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            aplicarFiltros();
+        });
+        
+        // Função para aplicar todos os filtros
+        function aplicarFiltros() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const table = document.getElementById('colaboradoresTable');
+            const rows = table.getElementsByTagName('tr');
+            let visibleCount = 0;
+            
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let found = false;
+                let dateMatch = true;
+                
+                // Verificar busca por texto
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().includes(searchTerm)) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                // Verificar filtro de data (coluna 6 = Data Cadastro)
+                if (dataInicio || dataFim) {
+                    const dataCadastro = cells[6].textContent.trim();
+                    const partesData = dataCadastro.split('/');
+                    if (partesData.length === 3) {
+                        const dataFormatada = `${partesData[2]}-${partesData[1].padStart(2, '0')}-${partesData[0].padStart(2, '0')}`;
+                        
+                        if (dataInicio && dataFormatada < dataInicio) {
+                            dateMatch = false;
+                        }
+                        if (dataFim && dataFormatada > dataFim) {
+                            dateMatch = false;
+                        }
+                    }
+                }
+                
+                const shouldShow = found && dateMatch;
+                row.style.display = shouldShow ? '' : 'none';
+                if (shouldShow) visibleCount++;
+            }
+            
+            // Atualizar contador
+            document.getElementById('resultadoFiltro').textContent = `Mostrando ${visibleCount} cadastros`;
+        }
+        
+        // Função para filtrar por data
+        function filtrarPorData() {
+            aplicarFiltros();
+        }
+        
+        // Função para limpar filtros
+        function limparFiltros() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('dataInicio').value = '';
+            document.getElementById('dataFim').value = '';
+            aplicarFiltros();
+        }
+        
+        // Auto-refresh a cada 30 segundos
+        setInterval(function() {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>
