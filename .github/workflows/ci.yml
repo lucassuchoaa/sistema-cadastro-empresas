@@ -61,7 +61,7 @@ jobs:
           echo "✅ Security audit completed"
         
       - name: Run dependency check
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@v4
         if: github.event_name == 'pull_request'
         
   deploy:
