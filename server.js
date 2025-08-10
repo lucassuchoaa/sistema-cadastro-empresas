@@ -29,8 +29,8 @@ let colaboradores = {};
 
 // Credenciais do Super Admin
 const SUPER_ADMIN = {
-  usuario: 'superadmin',
-  senha: '$2a$10$mjEvCeZTlhFCXteOjJG9YepXbj5gwRVYnI.Lr26ihXy.Yg2CIhcEK' // password
+  usuario: 'admin_master_2024',
+  senha: '$2a$10$HosiuIDD2JpSECeoCU8KqehF1Yyr/sn/DFsIgIVLwNKESPNEoeyDC' // Adm1n@2024#SecurePass!
 };
 
 // Middleware de autenticação
@@ -119,42 +119,22 @@ app.get('/admin/login', (req, res) => {
 app.post('/admin/login', async (req, res) => {
   const { empresa, senha, tipo } = req.body;
   
-  // Verificar se é super admin
+  // Apenas Super Admin pode acessar a área administrativa
   if (tipo === 'superadmin' && empresa === SUPER_ADMIN.usuario && await bcrypt.compare(senha, SUPER_ADMIN.senha)) {
     req.session.isSuperAdmin = true;
     res.redirect('/admin/dashboard');
-  }
-  // Verificar se é empresa
-  else if (tipo === 'empresa' && empresas[empresa] && await bcrypt.compare(senha, empresas[empresa].senha)) {
-    req.session.empresaId = empresa;
-    res.redirect('/admin/dashboard');
   } else {
-    const errorMsg = tipo === 'superadmin' ? 'Credenciais de super admin inválidas' : 'Credenciais da empresa inválidas';
-    res.render('admin/login', { error: errorMsg, query: req.query });
+    res.render('admin/login', { error: 'Credenciais inválidas. Apenas o Super Admin pode acessar esta área.', query: req.query });
   }
 });
 
-app.get('/admin/dashboard', requireAuth, (req, res) => {
-  if (req.session.isSuperAdmin) {
-    // Dashboard do Super Admin
-    res.render('admin/super-dashboard', { 
-      empresas,
-      colaboradores,
-      isSuperAdmin: true
-    });
-  } else {
-    // Dashboard da Empresa
-    const empresaId = req.session.empresaId;
-    const empresa = empresas[empresaId];
-    const colaboradoresEmpresa = colaboradores[empresaId] || [];
-    
-    res.render('admin/dashboard', { 
-      empresa, 
-      colaboradores: colaboradoresEmpresa,
-      empresaId,
-      isSuperAdmin: false
-    });
-  }
+app.get('/admin/dashboard', requireSuperAdmin, (req, res) => {
+  // Apenas Super Admin pode acessar a área administrativa
+  res.render('admin/super-dashboard', { 
+    empresas,
+    colaboradores,
+    isSuperAdmin: true
+  });
 });
 
 app.get('/admin/criar-empresa', requireSuperAdmin, (req, res) => {
@@ -186,7 +166,7 @@ app.post('/admin/criar-empresa', requireSuperAdmin, async (req, res) => {
 });
 
 // Download de planilha
-app.get('/download/:slug', requireAuth, (req, res) => {
+app.get('/download/:slug', requireSuperAdmin, (req, res) => {
   const slug = req.params.slug;
   const filePath = path.join(__dirname, 'planilhas', slug, 'colaboradores.xlsx');
   

@@ -13,27 +13,14 @@
         <div class="row justify-content-center align-items-center min-vh-100">
             <div class="col-md-6 col-lg-4">
                 <div class="card shadow">
-                    <% 
-                        const tipo = typeof query !== 'undefined' && query.tipo ? query.tipo : 'empresa';
-                        const isSuperAdmin = tipo === 'superadmin';
-                    %>
-                    
-                    <div class="card-header <%= isSuperAdmin ? 'bg-danger' : 'bg-primary' %> text-white text-center">
+                    <div class="card-header bg-danger text-white text-center">
                         <h4 class="mb-0">
-                            <% if (isSuperAdmin) { %>
-                                <i class="fas fa-crown me-2"></i>Super Administrador
-                            <% } else { %>
-                                <i class="fas fa-building me-2"></i>Acesso Empresarial
-                            <% } %>
+                            <i class="fas fa-crown me-2"></i>Super Administrador
                         </h4>
                     </div>
                     <div class="card-body">
                         <h4 class="card-title text-center mb-4">
-                            <% if (isSuperAdmin) { %>
-                                Login Super Admin
-                            <% } else { %>
-                                Login da Empresa
-                            <% } %>
+                            Acesso Administrativo
                         </h4>
                         
                         <% if (typeof error !== 'undefined') { %>
@@ -42,42 +29,27 @@
                             </div>
                         <% } %>
                         
-                        <% if (isSuperAdmin) { %>
-                            <div class="alert alert-warning" role="alert">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>Área Restrita:</strong> Acesso apenas para super administradores.
-                            </div>
-                        <% } else { %>
-                            <div class="alert alert-info" role="alert">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Acesso Empresarial:</strong> Use o slug da sua empresa e a senha fornecida.
-                            </div>
-                        <% } %>
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Área Restrita:</strong> Acesso exclusivo para super administradores.
+                        </div>
                         
                         <form method="POST" action="/admin/login">
-                            <input type="hidden" name="tipo" value="<%= tipo %>">
+                            <input type="hidden" name="tipo" value="superadmin">
                             
                             <div class="mb-3">
                                 <label for="empresa" class="form-label">
-                                    <% if (isSuperAdmin) { %>
-                                        Usuário
-                                    <% } else { %>
-                                        Slug da Empresa
-                                    <% } %>
+                                    Usuário
                                 </label>
                                 <input type="text" class="form-control" id="empresa" name="empresa" required 
-                                       placeholder="<%= isSuperAdmin ? 'superadmin' : 'slug-da-empresa' %>">
+                                       placeholder="Digite o usuário">
                             </div>
                             <div class="mb-3">
                                 <label for="senha" class="form-label">Senha</label>
                                 <input type="password" class="form-control" id="senha" name="senha" required>
                             </div>
-                            <button type="submit" class="btn <%= isSuperAdmin ? 'btn-danger' : 'btn-primary' %> w-100">
-                                <% if (isSuperAdmin) { %>
-                                    <i class="fas fa-crown me-2"></i>Entrar como Super Admin
-                                <% } else { %>
-                                    <i class="fas fa-building me-2"></i>Entrar como Empresa
-                                <% } %>
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-crown me-2"></i>Entrar como Super Admin
                             </button>
                         </form>
                     </div>
