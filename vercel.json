@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "sistema-cadastro-empresas",
   "builds": [
     {
       "src": "server.js",
@@ -16,11 +15,7 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "functions": {
-    "server.js": {
-      "maxDuration": 30
-    }
-  },
+
   "regions": ["gru1"],
   "github": {
     "enabled": true,
