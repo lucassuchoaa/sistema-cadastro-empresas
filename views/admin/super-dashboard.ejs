@@ -233,10 +233,8 @@
                                             <th>Empresa</th>
                                             <th>CPF</th>
                                             <th>Nome</th>
-                                            <th>Matrícula</th>
                                             <th>RG</th>
                                             <th>Data Admissão</th>
-                                            <th>Tipo Contrato</th>
                                             <th>Data Cadastro</th>
                                         </tr>
                                     </thead>
@@ -251,12 +249,8 @@
                                                     </td>
                                                     <td><%= colaborador.cpf %></td>
                                                     <td><%= colaborador.nome %></td>
-                                                    <td><%= colaborador.matricula %></td>
                                                     <td><%= colaborador.rg %></td>
                                                     <td><%= colaborador.dataAdmissao %></td>
-                                                    <td>
-                                                        <span class="badge bg-secondary"><%= colaborador.tipoContrato %></span>
-                                                    </td>
                                                     <td><%= colaborador.dataRegistro %></td>
                                                 </tr>
                                             <% }); %>

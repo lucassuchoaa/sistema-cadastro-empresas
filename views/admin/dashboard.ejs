@@ -91,23 +91,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                                <div class="card stats-card">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between">
-                                            <div>
-                                                <h6 class="card-title text-muted">Tipos de Contrato</h6>
-                                                <h3 class="mb-0">
-                                                    <%= [...new Set(colaboradores.map(c => c.tipoContrato))].length %>
-                                                </h3>
-                                            </div>
-                                            <div class="align-self-center">
-                                                <i class="fas fa-file-contract fa-2x text-warning"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            
             <div class="col-md-3">
                 <div class="card stats-card">
                     <div class="card-body">
@@ -191,10 +175,8 @@
                                         <tr>
                                             <th>CPF</th>
                                             <th>Nome</th>
-                                            <th>Matrícula</th>
                                             <th>RG</th>
                                             <th>Data Admissão</th>
-                                            <th>Tipo Contrato</th>
                                             <th>Data Cadastro</th>
                                         </tr>
                                     </thead>
@@ -203,12 +185,8 @@
                                             <tr>
                                                 <td><%= colaborador.cpf %></td>
                                                 <td><%= colaborador.nome %></td>
-                                                <td><%= colaborador.matricula %></td>
                                                 <td><%= colaborador.rg %></td>
                                                 <td><%= colaborador.dataAdmissao %></td>
-                                                <td>
-                                                    <span class="badge bg-secondary"><%= colaborador.tipoContrato %></span>
-                                                </td>
                                                 <td><%= colaborador.dataRegistro %></td>
                                             </tr>
                                         <% }); %>
@@ -269,9 +247,9 @@
                     }
                 }
                 
-                // Verificar filtro de data (coluna 6 = Data Cadastro)
+                // Verificar filtro de data (coluna 4 = Data Cadastro)
                 if (dataInicio || dataFim) {
-                    const dataCadastro = cells[6].textContent.trim();
+                    const dataCadastro = cells[4].textContent.trim();
                     const partesData = dataCadastro.split('/');
                     if (partesData.length === 3) {
                         const dataFormatada = `${partesData[2]}-${partesData[1].padStart(2, '0')}-${partesData[0].padStart(2, '0')}`;

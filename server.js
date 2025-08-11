@@ -77,7 +77,7 @@ app.post('/empresa/:slug/cadastro', async (req, res) => {
     return res.status(404).json({ error: 'Empresa não encontrada' });
   }
   
-  const { cpf, nome, dataNascimento, matricula, rg, dataEmissaoRg, orgaoEmissorRg, ufEmissao, dataAdmissao, tipoContrato } = req.body;
+  const { cpf, nome, dataNascimento, rg, dataEmissaoRg, orgaoEmissorRg, ufEmissao, dataAdmissao } = req.body;
   
   // Adicionar colaborador
   if (!colaboradores[slug]) {
@@ -89,13 +89,11 @@ app.post('/empresa/:slug/cadastro', async (req, res) => {
     cpf,
     nome,
     dataNascimento,
-    matricula,
     rg,
     dataEmissaoRg,
     orgaoEmissorRg,
     ufEmissao,
     dataAdmissao,
-    tipoContrato,
     dataRegistro: new Date().toLocaleDateString('pt-BR')
   };
   
