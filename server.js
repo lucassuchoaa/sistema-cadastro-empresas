@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -7,9 +8,19 @@ const XLSX = require('xlsx');
 const fs = require('fs-extra');
 const path = require('path');
 
+// Importar configurações do MongoDB
+const { connectDB } = require('./config/database');
+
+// Importar modelos
+const Empresa = require('./models/Empresa');
+const Colaborador = require('./models/Colaborador');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'seu_jwt_secret_aqui';
+const JWT_SECRET = process.env.JWT_SECRET || 'seu_jwt_secret_aqui';
+
+// Conectar ao MongoDB
+connectDB();
 
 // Configurações
 app.set('view engine', 'ejs');
@@ -18,14 +29,14 @@ app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
-  secret: 'session_secret',
+  secret: process.env.SESSION_SECRET || 'session_secret',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
 }));
-
-// Dados em memória (em produção, usar banco de dados)
-let empresas = {};
-let colaboradores = {};
 
 // Credenciais do Super Admin
 const SUPER_ADMIN = {
@@ -57,52 +68,78 @@ app.get('/', (req, res) => {
 });
 
 // Rota para landing page específica da empresa
-app.get('/empresa/:slug', (req, res) => {
-  const slug = req.params.slug;
-  const empresa = empresas[slug];
-  
-  if (!empresa) {
-    return res.status(404).render('404');
+app.get('/empresa/:slug', async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const empresa = await Empresa.findOne({ slug, ativo: true });
+    
+    if (!empresa) {
+      return res.status(404).render('404');
+    }
+    
+    res.render('landing', { empresa, slug });
+  } catch (error) {
+    console.error('Erro ao buscar empresa:', error);
+    res.status(500).render('404');
   }
-  
-  res.render('landing', { empresa, slug });
 });
 
 // Rota para processar cadastro de colaborador
 app.post('/empresa/:slug/cadastro', async (req, res) => {
-  const slug = req.params.slug;
-  const empresa = empresas[slug];
-  
-  if (!empresa) {
-    return res.status(404).json({ error: 'Empresa não encontrada' });
+  try {
+    const slug = req.params.slug;
+    const empresa = await Empresa.findOne({ slug, ativo: true });
+    
+    if (!empresa) {
+      return res.status(404).json({ error: 'Empresa não encontrada' });
+    }
+    
+    // Verificar se empresa pode receber mais colaboradores
+    if (!empresa.podeReceberColaborador()) {
+      return res.status(400).json({ error: 'Empresa atingiu limite de colaboradores' });
+    }
+    
+    const { cpf, nome, dataNascimento, rg, dataEmissaoRg, orgaoEmissorRg, ufEmissao, dataAdmissao } = req.body;
+    
+    // Verificar se CPF já existe nesta empresa
+    const cpfExistente = await Colaborador.findOne({ 
+      cpf: cpf.replace(/\D/g, ''), 
+      empresa: empresa._id 
+    });
+    
+    if (cpfExistente) {
+      return res.status(400).json({ error: 'CPF já cadastrado nesta empresa' });
+    }
+    
+    // Criar novo colaborador
+    const novoColaborador = new Colaborador({
+      empresa: empresa._id,
+      cpf: cpf.replace(/\D/g, ''),
+      nome,
+      dataNascimento: new Date(dataNascimento),
+      rg,
+      dataEmissaoRg: new Date(dataEmissaoRg),
+      orgaoEmissorRg,
+      ufEmissao,
+      dataAdmissao: dataAdmissao ? new Date(dataAdmissao) : undefined
+    });
+    
+    await novoColaborador.save();
+    
+    // Atualizar planilha
+    await atualizarPlanilha(slug);
+    
+    res.json({ success: true, message: 'Cadastro realizado com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao cadastrar colaborador:', error);
+    
+    if (error.name === 'ValidationError') {
+      const mensagens = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ error: mensagens.join(', ') });
+    }
+    
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
-  
-  const { cpf, nome, dataNascimento, rg, dataEmissaoRg, orgaoEmissorRg, ufEmissao, dataAdmissao } = req.body;
-  
-  // Adicionar colaborador
-  if (!colaboradores[slug]) {
-    colaboradores[slug] = [];
-  }
-  
-  const novoColaborador = {
-    id: Date.now(),
-    cpf,
-    nome,
-    dataNascimento,
-    rg,
-    dataEmissaoRg,
-    orgaoEmissorRg,
-    ufEmissao,
-    dataAdmissao,
-    dataRegistro: new Date().toLocaleDateString('pt-BR')
-  };
-  
-  colaboradores[slug].push(novoColaborador);
-  
-  // Atualizar planilha
-  await atualizarPlanilha(slug);
-  
-  res.json({ success: true, message: 'Cadastro realizado com sucesso!' });
 });
 
 // Área administrativa
@@ -115,24 +152,42 @@ app.get('/admin/login', (req, res) => {
 });
 
 app.post('/admin/login', async (req, res) => {
-  const { empresa, senha, tipo } = req.body;
-  
-  // Apenas Super Admin pode acessar a área administrativa
-  if (tipo === 'superadmin' && empresa === SUPER_ADMIN.usuario && await bcrypt.compare(senha, SUPER_ADMIN.senha)) {
-    req.session.isSuperAdmin = true;
-    res.redirect('/admin/dashboard');
-  } else {
-    res.render('admin/login', { error: 'Credenciais inválidas. Apenas o Super Admin pode acessar esta área.', query: req.query });
+  try {
+    const { empresa, senha, tipo } = req.body;
+    
+    // Apenas Super Admin pode acessar a área administrativa
+    if (tipo === 'superadmin' && empresa === SUPER_ADMIN.usuario && await bcrypt.compare(senha, SUPER_ADMIN.senha)) {
+      req.session.isSuperAdmin = true;
+      res.redirect('/admin/dashboard');
+    } else {
+      res.render('admin/login', { error: 'Credenciais inválidas. Apenas o Super Admin pode acessar esta área.', query: req.query });
+    }
+  } catch (error) {
+    console.error('Erro no login:', error);
+    res.render('admin/login', { error: 'Erro interno do servidor', query: req.query });
   }
 });
 
-app.get('/admin/dashboard', requireSuperAdmin, (req, res) => {
-  // Apenas Super Admin pode acessar a área administrativa
-  res.render('admin/super-dashboard', { 
-    empresas,
-    colaboradores,
-    isSuperAdmin: true
-  });
+app.get('/admin/dashboard', requireSuperAdmin, async (req, res) => {
+  try {
+    // Buscar todas as empresas e colaboradores
+    const empresas = await Empresa.find({ ativo: true }).sort({ nome: 1 });
+    const colaboradores = {};
+    
+    for (const empresa of empresas) {
+      colaboradores[empresa.slug] = await Colaborador.find({ empresa: empresa._id })
+        .sort({ dataRegistro: -1 });
+    }
+    
+    res.render('admin/super-dashboard', { 
+      empresas,
+      colaboradores,
+      isSuperAdmin: true
+    });
+  } catch (error) {
+    console.error('Erro ao carregar dashboard:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
 });
 
 app.get('/admin/criar-empresa', requireSuperAdmin, (req, res) => {
@@ -140,38 +195,82 @@ app.get('/admin/criar-empresa', requireSuperAdmin, (req, res) => {
 });
 
 app.post('/admin/criar-empresa', requireSuperAdmin, async (req, res) => {
-  const { nome, slug, senha, cor, logo } = req.body;
-  
-  if (empresas[slug]) {
-    return res.render('admin/criar-empresa', { error: 'Slug já existe' });
+  try {
+    const { nome, slug, senha, cor, logo } = req.body;
+    
+    // Verificar se slug já existe
+    const empresaExistente = await Empresa.findOne({ slug });
+    if (empresaExistente) {
+      return res.render('admin/criar-empresa', { error: 'Slug já existe' });
+    }
+    
+    const senhaHash = await bcrypt.hash(senha, 10);
+    
+    const novaEmpresa = new Empresa({
+      nome,
+      slug,
+      senha: senhaHash,
+      cor: cor || '#007bff',
+      logo: logo || ''
+    });
+    
+    await novaEmpresa.save();
+    
+    // Criar diretório para planilhas
+    await fs.ensureDir(path.join(__dirname, 'planilhas', slug));
+    
+    res.redirect('/admin/login');
+  } catch (error) {
+    console.error('Erro ao criar empresa:', error);
+    
+    if (error.name === 'ValidationError') {
+      const mensagens = Object.values(error.errors).map(err => err.message);
+      return res.render('admin/criar-empresa', { error: mensagens.join(', ') });
+    }
+    
+    res.render('admin/criar-empresa', { error: 'Erro interno do servidor' });
   }
-  
-  const senhaHash = await bcrypt.hash(senha, 10);
-  
-  empresas[slug] = {
-    nome,
-    slug,
-    senha: senhaHash,
-    cor: cor || '#007bff',
-    logo: logo || '',
-    dataCriacao: new Date().toLocaleDateString('pt-BR')
-  };
-  
-  // Criar diretório para planilhas
-  await fs.ensureDir(path.join(__dirname, 'planilhas', slug));
-  
-  res.redirect('/admin/login');
 });
 
 // Download de planilha
-app.get('/download/:slug', requireSuperAdmin, (req, res) => {
-  const slug = req.params.slug;
-  const filePath = path.join(__dirname, 'planilhas', slug, 'colaboradores.xlsx');
-  
-  if (fs.existsSync(filePath)) {
+app.get('/download/:slug', requireSuperAdmin, async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const empresa = await Empresa.findOne({ slug });
+    
+    if (!empresa) {
+      return res.status(404).send('Empresa não encontrada');
+    }
+    
+    const colaboradores = await Colaborador.find({ empresa: empresa._id })
+      .sort({ dataRegistro: -1 });
+    
+    const filePath = path.join(__dirname, 'planilhas', slug, 'colaboradores.xlsx');
+    
+    // Gerar planilha
+    const ws = XLSX.utils.json_to_sheet(colaboradores.map(c => ({
+      CPF: c.cpf,
+      Nome: c.nome,
+      'Data Nascimento': c.dataNascimento.toLocaleDateString('pt-BR'),
+      RG: c.rg,
+      'Data Emissão RG': c.dataEmissaoRg.toLocaleDateString('pt-BR'),
+      'Órgão Emissor': c.orgaoEmissorRg,
+      'UF Emissão': c.ufEmissao,
+      'Data Admissão': c.dataAdmissao ? c.dataAdmissao.toLocaleDateString('pt-BR') : 'Não informado',
+      Status: c.status,
+      'Data Registro': c.dataRegistro.toLocaleDateString('pt-BR')
+    })));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Colaboradores');
+    
+    await fs.ensureDir(path.dirname(filePath));
+    XLSX.writeFile(wb, filePath);
+    
     res.download(filePath, `colaboradores_${slug}.xlsx`);
-  } else {
-    res.status(404).send('Planilha não encontrada');
+  } catch (error) {
+    console.error('Erro ao gerar planilha:', error);
+    res.status(500).send('Erro ao gerar planilha');
   }
 });
 
@@ -186,18 +285,39 @@ app.get('/admin/logout', (req, res) => {
 
 // Função para atualizar planilha
 async function atualizarPlanilha(slug) {
-  const colaboradoresEmpresa = colaboradores[slug] || [];
-  
-  const ws = XLSX.utils.json_to_sheet(colaboradoresEmpresa);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Colaboradores');
-  
-  const filePath = path.join(__dirname, 'planilhas', slug, 'colaboradores.xlsx');
-  await fs.ensureDir(path.dirname(filePath));
-  XLSX.writeFile(wb, filePath);
+  try {
+    const empresa = await Empresa.findOne({ slug });
+    if (!empresa) return;
+    
+    const colaboradores = await Colaborador.find({ empresa: empresa._id })
+      .sort({ dataRegistro: -1 });
+    
+    const ws = XLSX.utils.json_to_sheet(colaboradores.map(c => ({
+      CPF: c.cpf,
+      Nome: c.nome,
+      'Data Nascimento': c.dataNascimento.toLocaleDateString('pt-BR'),
+      RG: c.rg,
+      'Data Emissão RG': c.dataEmissaoRg.toLocaleDateString('pt-BR'),
+      'Órgão Emissor': c.orgaoEmissorRg,
+      'UF Emissão': c.ufEmissao,
+      'Data Admissão': c.dataAdmissao ? c.dataAdmissao.toLocaleDateString('pt-BR') : 'Não informado',
+      Status: c.status,
+      'Data Registro': c.dataRegistro.toLocaleDateString('pt-BR')
+    })));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Colaboradores');
+    
+    const filePath = path.join(__dirname, 'planilhas', slug, 'colaboradores.xlsx');
+    await fs.ensureDir(path.dirname(filePath));
+    XLSX.writeFile(wb, filePath);
+  } catch (error) {
+    console.error('Erro ao atualizar planilha:', error);
+  }
 }
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-  console.log(`Acesse: http://localhost:${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🌐 Acesse: http://localhost:${PORT}`);
+  console.log(`📊 MongoDB: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/sistema-cadastro-empresas'}`);
 });
