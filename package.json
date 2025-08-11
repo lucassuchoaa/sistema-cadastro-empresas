@@ -14,7 +14,7 @@
     "semantic-release": "semantic-release"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
     "dotenv": "^17.2.1",
     "ejs": "^3.1.10",
