@@ -22,7 +22,7 @@
     "express-session": "^1.18.1",
     "fs-extra": "^11.2.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.17.1",
+    "mongoose": "^8.19.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
