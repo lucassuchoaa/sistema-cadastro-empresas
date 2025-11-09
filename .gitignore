@@ -133,6 +133,11 @@ public
 tmp/
 temp/
 
+# Upload folders
+uploads/
+planilhas/exports/
+planilhas/modelo_cnpj.xlsx
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

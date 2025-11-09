@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consulta CNPJ - Dados Empresariais Completos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-bottom: 30px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+      transition: all 0.3s;
+    }
+
+    .tab:hover {
+      color: #667eea;
+    }
+
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      font-weight: 600;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+    }
+
+    .file-upload {
+      border: 3px dashed #e0e0e0;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .file-upload:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .file-upload input[type="file"] {
+      display: none;
+    }
+
+    .file-upload-label {
+      cursor: pointer;
+      color: #667eea;
+      font-weight: 600;
+    }
+
+    .download-link {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: 10px;
+      display: inline-block;
+    }
+
+    .download-link:hover {
+      text-decoration: underline;
+    }
+
+    .btn {
+      padding: 14px 32px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #28a745;
+      color: white;
+      margin-right: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: #218838;
+    }
+
+    .btn-export {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .btn-export:hover {
+      background: #138496;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading.active {
+      display: block;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .results {
+      display: none;
+      margin-top: 30px;
+    }
+
+    .results.active {
+      display: block;
+    }
+
+    .result-item {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+
+    .result-item.error {
+      border-left-color: #dc3545;
+      background: #fff5f5;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .result-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #333;
+    }
+
+    .result-cnpj {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .result-field {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+    }
+
+    .result-field label {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .result-field .value {
+      font-weight: 600;
+      color: #333;
+      word-break: break-word;
+    }
+
+    .socios-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 2px solid #e0e0e0;
+    }
+
+    .socios-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .socio-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .socio-name {
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+
+    .socio-info {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 3px;
+    }
+
+    .linkedin-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #0077b5;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .linkedin-link:hover {
+      text-decoration: underline;
+    }
+
+    .export-section {
+      margin-top: 30px;
+      padding: 25px;
+      background: #f8f9ff;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .export-section h3 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .hubspot-section {
+      margin-top: 20px;
+      padding: 20px;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+    }
+
+    .hubspot-section h4 {
+      margin-bottom: 15px;
+      color: #ff7a59;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 10px;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .alert-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+
+    .file-name {
+      margin-top: 10px;
+      color: #28a745;
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔍 Consulta CNPJ</h1>
+      <p>Busque dados completos de empresas brasileiras com integração HubSpot</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('single')">CNPJ Individual</button>
+        <button class="tab" onclick="switchTab('multiple')">Múltiplos CNPJs</button>
+        <button class="tab" onclick="switchTab('upload')">Upload Planilha</button>
+      </div>
+
+      <!-- Tab: CNPJ Individual -->
+      <div id="single-tab" class="tab-content active">
+        <form id="singleForm" onsubmit="buscarCNPJ(event, 'single')">
+          <div class="form-group">
+            <label for="cnpj">CNPJ</label>
+            <input type="text" id="cnpj" name="cnpj" placeholder="00.000.000/0000-00" 
+                   maxlength="18" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Buscar Dados</button>
+        </form>
+      </div>
+
+      <!-- Tab: Múltiplos CNPJs -->
+      <div id="multiple-tab" class="tab-content">
+        <form id="multipleForm" onsubmit="buscarCNPJ(event, 'multiple')">
+          <div class="form-group">
+            <label for="cnpjs">CNPJs (um por linha)</label>
+            <textarea id="cnpjs" name="cnpjs" placeholder="00.000.000/0000-00&#10;11.111.111/1111-11&#10;22.222.222/2222-22" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Buscar Dados</button>
+        </form>
+      </div>
+
+      <!-- Tab: Upload Planilha -->
+      <div id="upload-tab" class="tab-content">
+        <form id="uploadForm" onsubmit="uploadPlanilha(event)">
+          <div class="form-group">
+            <label>Planilha de CNPJs</label>
+            <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+              <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+              <div>
+                <p class="file-upload-label">📁 Clique para selecionar ou arraste a planilha</p>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">Formato aceito: .xlsx, .xls</p>
+                <div id="fileName" class="file-name"></div>
+              </div>
+            </div>
+            <a href="/cnpj/download-modelo" class="download-link">⬇️ Baixar modelo de planilha</a>
+          </div>
+          <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>Processar Planilha</button>
+        </form>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Buscando dados... Isso pode levar alguns instantes.</p>
+      </div>
+
+      <!-- Results -->
+      <div id="results" class="results"></div>
+
+      <!-- Export Section -->
+      <div id="exportSection" class="export-section" style="display: none;">
+        <h3>📊 Exportar Resultados</h3>
+        <button class="btn btn-secondary" onclick="exportarExcel()">
+          📥 Baixar Excel
+        </button>
+        <button class="btn btn-export" onclick="mostrarHubSpot()">
+          🚀 Exportar para HubSpot
+        </button>
+
+        <!-- HubSpot Section -->
+        <div id="hubspotSection" class="hubspot-section" style="display: none;">
+          <h4>Integração HubSpot</h4>
+          <div class="checkbox-group">
+            <input type="checkbox" id="criarEmpresa" checked>
+            <label for="criarEmpresa" style="margin: 0;">Criar empresa no HubSpot</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="criarContatos">
+            <label for="criarContatos" style="margin: 0;">Criar contatos (sócios)</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="criarNegocio">
+            <label for="criarNegocio" style="margin: 0;">Criar negócio</label>
+          </div>
+          <div id="pipelineSection" style="display: none;">
+            <div class="form-group">
+              <label for="pipeline">Pipeline</label>
+              <select id="pipeline" onchange="carregarEtagios()">
+                <option value="">Carregando...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="estagio">Estágio</label>
+              <select id="estagio">
+                <option value="">Selecione um pipeline primeiro</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="exportarHubSpot()">
+            Enviar para HubSpot
+          </button>
+          <div id="hubspotStatus"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let resultadosGlobais = [];
+    let pipelinesGlobais = [];
+
+    // Switch entre tabs
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`${tab}-tab`).classList.add('active');
+      
+      // Limpa resultados ao trocar de tab
+      limparResultados();
+    }
+
+    // Formata CNPJ enquanto digita
+    document.getElementById('cnpj')?.addEventListener('input', function(e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length <= 14) {
+        value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+        value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+        value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+        value = value.replace(/(\d{4})(\d)/, '$1-$2');
+        e.target.value = value;
+      }
+    });
+
+    // Handle file selection
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('fileName').textContent = `✓ ${file.name}`;
+        document.getElementById('uploadBtn').disabled = false;
+      }
+    }
+
+    // Buscar CNPJ
+    async function buscarCNPJ(event, type) {
+      event.preventDefault();
+      
+      limparResultados();
+      mostrarLoading();
+      
+      try {
+        let cnpjs = [];
+        
+        if (type === 'single') {
+          cnpjs = [document.getElementById('cnpj').value];
+        } else {
+          const textarea = document.getElementById('cnpjs').value;
+          cnpjs = textarea.split('\n').filter(c => c.trim());
+        }
+        
+        const response = await fetch('/api/cnpj/buscar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cnpjs })
+        });
+        
+        const data = await response.json();
+        resultadosGlobais = data.resultados;
+        
+        mostrarResultados(data.resultados);
+      } catch (error) {
+        mostrarErro('Erro ao buscar dados. Tente novamente.');
+      } finally {
+        esconderLoading();
+      }
+    }
+
+    // Upload planilha
+    async function uploadPlanilha(event) {
+      event.preventDefault();
+      
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        alert('Selecione uma planilha');
+        return;
+      }
+      
+      limparResultados();
+      mostrarLoading();
+      
+      const formData = new FormData();
+      formData.append('planilha', file);
+      
+      try {
+        const response = await fetch('/api/cnpj/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        resultadosGlobais = data.resultados;
+        
+        mostrarResultados(data.resultados);
+      } catch (error) {
+        mostrarErro('Erro ao processar planilha. Tente novamente.');
+      } finally {
+        esconderLoading();
+      }
+    }
+
+    // Mostrar resultados
+    function mostrarResultados(resultados) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+      
+      if (resultados.length === 0) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">Nenhum resultado encontrado.</div>';
+        return;
+      }
+      
+      resultados.forEach(resultado => {
+        if (resultado.sucesso) {
+          resultsDiv.innerHTML += criarCardEmpresa(resultado.dados);
+        } else {
+          resultsDiv.innerHTML += criarCardErro(resultado);
+        }
+      });
+      
+      resultsDiv.classList.add('active');
+      document.getElementById('exportSection').style.display = 'block';
+    }
+
+    // Criar card de empresa
+    function criarCardEmpresa(dados) {
+      const socios = dados.socios.map(s => `
+        <div class="socio-card">
+          <div class="socio-name">${s.nome}</div>
+          <div class="socio-info"><strong>Qualificação:</strong> ${s.qualificacao}</div>
+          <div class="socio-info"><strong>CPF/CNPJ:</strong> ${s.cpfCnpj}</div>
+          ${s.dataEntrada ? `<div class="socio-info"><strong>Data Entrada:</strong> ${s.dataEntrada}</div>` : ''}
+          ${s.linkedin ? `<a href="${s.linkedin}" target="_blank" class="linkedin-link">🔗 Ver no LinkedIn</a>` : ''}
+        </div>
+      `).join('');
+      
+      return `
+        <div class="result-item">
+          <div class="result-header">
+            <div>
+              <div class="result-title">${dados.razaoSocial}</div>
+              <div class="result-cnpj">CNPJ: ${dados.cnpj}</div>
+            </div>
+          </div>
+          
+          <div class="result-grid">
+            <div class="result-field">
+              <label>Nome Fantasia</label>
+              <div class="value">${dados.nomeFantasia || 'Não informado'}</div>
+            </div>
+            <div class="result-field">
+              <label>Data Abertura</label>
+              <div class="value">${dados.dataAbertura}</div>
+            </div>
+            <div class="result-field">
+              <label>Situação</label>
+              <div class="value">${dados.situacao}</div>
+            </div>
+            <div class="result-field">
+              <label>Porte</label>
+              <div class="value">${dados.porte}</div>
+            </div>
+            <div class="result-field">
+              <label>Capital Social</label>
+              <div class="value">R$ ${dados.capitalSocial}</div>
+            </div>
+            <div class="result-field">
+              <label>Funcionários (Estimado)</label>
+              <div class="value">${dados.quantidadeFuncionarios}</div>
+            </div>
+            <div class="result-field">
+              <label>Faturamento (Estimado)</label>
+              <div class="value">${dados.faturamentoEstimado}</div>
+            </div>
+            <div class="result-field">
+              <label>E-mail</label>
+              <div class="value">${dados.email}</div>
+            </div>
+            <div class="result-field">
+              <label>Telefone</label>
+              <div class="value">${dados.telefone || 'Não disponível'}</div>
+            </div>
+            ${dados.telefone2 ? `
+            <div class="result-field">
+              <label>Telefone 2</label>
+              <div class="value">${dados.telefone2}</div>
+            </div>
+            ` : ''}
+            <div class="result-field">
+              <label>Endereço</label>
+              <div class="value">${dados.endereco.logradouro}, ${dados.endereco.numero}<br>
+              ${dados.endereco.bairro} - ${dados.endereco.municipio}/${dados.endereco.uf}<br>
+              CEP: ${dados.endereco.cep}</div>
+            </div>
+            <div class="result-field">
+              <label>Atividade Principal</label>
+              <div class="value">${dados.atividadePrincipal}<br>CNAE: ${dados.cnae}</div>
+            </div>
+          </div>
+          
+          ${dados.socios.length > 0 ? `
+          <div class="socios-section">
+            <div class="socios-title">👥 Sócios e Representantes Legais (${dados.socios.length})</div>
+            ${socios}
+          </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // Criar card de erro
+    function criarCardErro(resultado) {
+      return `
+        <div class="result-item error">
+          <div class="result-title">Erro ao buscar CNPJ: ${resultado.cnpj}</div>
+          <p style="color: #721c24; margin-top: 10px;">${resultado.erro}</p>
+        </div>
+      `;
+    }
+
+    // Exportar para Excel
+    async function exportarExcel() {
+      try {
+        const response = await fetch('/api/cnpj/exportar-excel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resultados: resultadosGlobais })
+        });
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `consulta_cnpj_${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        mostrarAlerta('success', 'Excel exportado com sucesso!');
+      } catch (error) {
+        mostrarAlerta('error', 'Erro ao exportar Excel');
+      }
+    }
+
+    // Mostrar seção HubSpot
+    async function mostrarHubSpot() {
+      const section = document.getElementById('hubspotSection');
+      section.style.display = 'block';
+      
+      // Carrega pipelines
+      await carregarPipelines();
+      
+      // Mostra seção de pipeline quando checkbox é marcado
+      document.getElementById('criarNegocio').addEventListener('change', function(e) {
+        document.getElementById('pipelineSection').style.display = e.target.checked ? 'block' : 'none';
+      });
+    }
+
+    // Carregar pipelines
+    async function carregarPipelines() {
+      try {
+        const response = await fetch('/api/hubspot/pipelines');
+        const data = await response.json();
+        
+        if (!data.success) {
+          document.getElementById('pipeline').innerHTML = '<option value="">Erro ao carregar pipelines</option>';
+          return;
+        }
+        
+        pipelinesGlobais = data.pipelines;
+        
+        const select = document.getElementById('pipeline');
+        select.innerHTML = '<option value="">Selecione um pipeline</option>';
+        
+        data.pipelines.forEach(pipeline => {
+          const option = document.createElement('option');
+          option.value = pipeline.id;
+          option.textContent = pipeline.label;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar pipelines:', error);
+      }
+    }
+
+    // Carregar estágios
+    function carregarEtagios() {
+      const pipelineId = document.getElementById('pipeline').value;
+      const select = document.getElementById('estagio');
+      
+      if (!pipelineId) {
+        select.innerHTML = '<option value="">Selecione um pipeline primeiro</option>';
+        return;
+      }
+      
+      const pipeline = pipelinesGlobais.find(p => p.id === pipelineId);
+      
+      if (!pipeline) return;
+      
+      select.innerHTML = '<option value="">Selecione um estágio</option>';
+      
+      pipeline.stages.forEach(stage => {
+        const option = document.createElement('option');
+        option.value = stage.id;
+        option.textContent = stage.label;
+        select.appendChild(option);
+      });
+    }
+
+    // Exportar para HubSpot
+    async function exportarHubSpot() {
+      const criarEmpresa = document.getElementById('criarEmpresa').checked;
+      const criarContatos = document.getElementById('criarContatos').checked;
+      const criarNegocio = document.getElementById('criarNegocio').checked;
+      const pipelineId = document.getElementById('pipeline').value;
+      const stageId = document.getElementById('estagio').value;
+      
+      if (criarNegocio && (!pipelineId || !stageId)) {
+        alert('Selecione um pipeline e estágio para criar negócio');
+        return;
+      }
+      
+      const statusDiv = document.getElementById('hubspotStatus');
+      statusDiv.innerHTML = '<div class="alert alert-warning">Processando...</div>';
+      
+      try {
+        const response = await fetch('/api/hubspot/exportar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resultados: resultadosGlobais,
+            opcoes: {
+              criarEmpresa,
+              criarContatos,
+              criarNegocio,
+              pipelineId,
+              stageId
+            }
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          statusDiv.innerHTML = `
+            <div class="alert alert-success">
+              <strong>✓ Exportado com sucesso!</strong><br>
+              ${data.summary}
+            </div>
+          `;
+        } else {
+          statusDiv.innerHTML = `
+            <div class="alert alert-error">
+              <strong>✗ Erro:</strong> ${data.error}
+            </div>
+          `;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `
+          <div class="alert alert-error">
+            <strong>✗ Erro ao exportar para HubSpot</strong>
+          </div>
+        `;
+      }
+    }
+
+    // Helpers
+    function mostrarLoading() {
+      document.getElementById('loading').classList.add('active');
+    }
+
+    function esconderLoading() {
+      document.getElementById('loading').classList.remove('active');
+    }
+
+    function limparResultados() {
+      document.getElementById('results').classList.remove('active');
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('exportSection').style.display = 'none';
+      resultadosGlobais = [];
+    }
+
+    function mostrarErro(mensagem) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `<div class="alert alert-error">${mensagem}</div>`;
+      resultsDiv.classList.add('active');
+    }
+
+    function mostrarAlerta(tipo, mensagem) {
+      const resultsDiv = document.getElementById('results');
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${tipo}`;
+      alertDiv.textContent = mensagem;
+      resultsDiv.insertBefore(alertDiv, resultsDiv.firstChild);
+      
+      setTimeout(() => alertDiv.remove(), 5000);
+    }
+  </script>
+</body>
+</html>
