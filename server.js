@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const XLSX = require('xlsx');
 const fs = require('fs-extra');
 const path = require('path');
+const multer = require('multer');
 
 // Importar configurações do MongoDB
 const { connectDB } = require('./config/database');
@@ -14,6 +15,24 @@ const { connectDB } = require('./config/database');
 // Importar modelos
 const Empresa = require('./models/Empresa');
 const Colaborador = require('./models/Colaborador');
+
+// Importar serviços
+const cnpjService = require('./services/cnpjService');
+const excelService = require('./services/excelService');
+const hubspotService = require('./services/hubspotService');
+
+// Configurar multer para upload de arquivos
+const upload = multer({ 
+  dest: 'uploads/',
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+        file.mimetype === 'application/vnd.ms-excel') {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato de arquivo inválido. Use .xlsx ou .xls'));
+    }
+  }
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,6 +85,217 @@ function requireSuperAdmin(req, res, next) {
 app.get('/', (req, res) => {
   res.render('entrada');
 });
+
+// ===== ROTAS DA LP DE CONSULTA CNPJ =====
+
+// Página principal de consulta CNPJ
+app.get('/cnpj', (req, res) => {
+  res.render('cnpj-lookup');
+});
+
+// API: Buscar CNPJs
+app.post('/api/cnpj/buscar', async (req, res) => {
+  try {
+    const { cnpjs } = req.body;
+    
+    if (!cnpjs || !Array.isArray(cnpjs) || cnpjs.length === 0) {
+      return res.status(400).json({ error: 'CNPJs não fornecidos' });
+    }
+    
+    const resultados = await cnpjService.buscarMultiplosCNPJs(cnpjs);
+    
+    res.json({ 
+      success: true, 
+      resultados,
+      total: resultados.length,
+      sucesso: resultados.filter(r => r.sucesso).length,
+      erros: resultados.filter(r => !r.sucesso).length
+    });
+  } catch (error) {
+    console.error('Erro ao buscar CNPJs:', error);
+    res.status(500).json({ error: 'Erro ao buscar CNPJs' });
+  }
+});
+
+// API: Upload e processamento de planilha
+app.post('/api/cnpj/upload', upload.single('planilha'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Planilha não enviada' });
+    }
+    
+    // Lê CNPJs da planilha
+    const cnpjs = await excelService.lerCNPJsDaPlanilha(req.file.path);
+    
+    if (cnpjs.length === 0) {
+      await fs.remove(req.file.path);
+      return res.status(400).json({ error: 'Nenhum CNPJ válido encontrado na planilha' });
+    }
+    
+    // Busca dados dos CNPJs
+    const resultados = await cnpjService.buscarMultiplosCNPJs(cnpjs);
+    
+    // Remove arquivo temporário
+    await fs.remove(req.file.path);
+    
+    res.json({ 
+      success: true, 
+      resultados,
+      total: resultados.length,
+      sucesso: resultados.filter(r => r.sucesso).length,
+      erros: resultados.filter(r => !r.sucesso).length
+    });
+  } catch (error) {
+    console.error('Erro ao processar planilha:', error);
+    
+    // Remove arquivo temporário em caso de erro
+    if (req.file) {
+      await fs.remove(req.file.path).catch(console.error);
+    }
+    
+    res.status(500).json({ error: error.message || 'Erro ao processar planilha' });
+  }
+});
+
+// API: Download do modelo de planilha
+app.get('/cnpj/download-modelo', async (req, res) => {
+  try {
+    const filePath = await excelService.criarPlanilhaModelo();
+    res.download(filePath, 'modelo_cnpj.xlsx', (err) => {
+      if (err) {
+        console.error('Erro ao fazer download:', err);
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao criar modelo:', error);
+    res.status(500).send('Erro ao gerar modelo de planilha');
+  }
+});
+
+// API: Exportar resultados para Excel
+app.post('/api/cnpj/exportar-excel', async (req, res) => {
+  try {
+    const { resultados } = req.body;
+    
+    if (!resultados || !Array.isArray(resultados)) {
+      return res.status(400).json({ error: 'Resultados não fornecidos' });
+    }
+    
+    const { filePath, fileName } = await excelService.exportarParaExcel(resultados);
+    
+    res.download(filePath, fileName, async (err) => {
+      if (err) {
+        console.error('Erro ao fazer download:', err);
+      }
+      // Remove arquivo após download
+      await fs.remove(filePath).catch(console.error);
+    });
+  } catch (error) {
+    console.error('Erro ao exportar Excel:', error);
+    res.status(500).json({ error: 'Erro ao exportar Excel' });
+  }
+});
+
+// ===== ROTAS HUBSPOT =====
+
+// API: Buscar pipelines do HubSpot
+app.get('/api/hubspot/pipelines', async (req, res) => {
+  try {
+    if (!hubspotService.isConfigured()) {
+      return res.json({ 
+        success: false, 
+        error: 'HubSpot não configurado. Configure a variável HUBSPOT_API_KEY no .env' 
+      });
+    }
+    
+    const pipelines = await hubspotService.buscarPipelines();
+    res.json({ success: true, pipelines });
+  } catch (error) {
+    console.error('Erro ao buscar pipelines:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API: Exportar para HubSpot
+app.post('/api/hubspot/exportar', async (req, res) => {
+  try {
+    const { resultados, opcoes } = req.body;
+    
+    if (!hubspotService.isConfigured()) {
+      return res.json({ 
+        success: false, 
+        error: 'HubSpot não configurado. Configure a variável HUBSPOT_API_KEY no .env' 
+      });
+    }
+    
+    if (!resultados || !Array.isArray(resultados)) {
+      return res.status(400).json({ success: false, error: 'Resultados não fornecidos' });
+    }
+    
+    let empresasCriadas = 0;
+    let contatosCriados = 0;
+    let negociosCriados = 0;
+    const erros = [];
+    
+    for (const resultado of resultados) {
+      if (!resultado.sucesso || !resultado.dados) continue;
+      
+      try {
+        let empresaId = null;
+        
+        // Criar empresa
+        if (opcoes.criarEmpresa) {
+          const empresa = await hubspotService.criarEmpresa(resultado.dados);
+          empresaId = empresa.id;
+          empresasCriadas++;
+        }
+        
+        // Criar contatos (sócios)
+        if (opcoes.criarContatos && empresaId && resultado.dados.socios?.length > 0) {
+          const contatos = await hubspotService.criarContatos(resultado.dados.socios, empresaId);
+          contatosCriados += contatos.length;
+        }
+        
+        // Criar negócio
+        if (opcoes.criarNegocio && empresaId) {
+          await hubspotService.criarNegocio(
+            resultado.dados, 
+            empresaId, 
+            opcoes.pipelineId, 
+            opcoes.stageId
+          );
+          negociosCriados++;
+        }
+      } catch (error) {
+        console.error(`Erro ao exportar ${resultado.dados.cnpj}:`, error);
+        erros.push(`${resultado.dados.razaoSocial}: ${error.message}`);
+      }
+    }
+    
+    const summary = `
+      Empresas criadas: ${empresasCriadas}
+      Contatos criados: ${contatosCriados}
+      Negócios criados: ${negociosCriados}
+      ${erros.length > 0 ? `\nErros: ${erros.length}` : ''}
+    `;
+    
+    res.json({ 
+      success: true, 
+      summary,
+      detalhes: {
+        empresas: empresasCriadas,
+        contatos: contatosCriados,
+        negocios: negociosCriados,
+        erros
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao exportar para HubSpot:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== FIM DAS ROTAS CNPJ/HUBSPOT =====
 
 // Rota para landing page específica da empresa
 app.get('/empresa/:slug', async (req, res) => {
